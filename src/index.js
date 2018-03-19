@@ -1,59 +1,74 @@
 const setup = require('./starter-kit/setup');
 
-exports.handler = async (event, context, callback) => {
+module.exports.handler = async (event, context, callback) => {
   // For keeping the browser launch
   context.callbackWaitsForEmptyEventLoop = false;
   const browser = await setup.getBrowser();
-  exports.run(browser).then(
-    (result) => callback(null, result)
-  ).catch(
-    (err) => callback(err)
-  );
+
+  let response = {
+    statusCode: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*', // Required for CORS support to work
+    },
+  };
+
+  try {
+    let pageurl = 'https://wikipedia.org';
+    if (event.queryStringParameters && event.queryStringParameters.url) {
+      pageurl = event.queryStringParameters.url;
+    }
+
+    const result = await exports.getFinishedPage(browser, pageurl);
+    response.body = JSON.stringify(result);
+    callback(null, response);
+  } catch (err) {
+    response.body = JSON.stringify(err);
+    response.statusCode = 500;
+    callback(err, response);
+  }
 };
 
-exports.run = async (browser) => {
-  // implement here
-  // this is sample
+
+exports.getFinishedPage = async (browser, pageurl) => {
+  let response = {};
   const page = await browser.newPage();
-  await page.goto('https://www.google.co.jp',
-   {waitUntil: ['domcontentloaded', 'networkidle0']}
+
+  // Load the target web page.
+  await page.goto(pageurl,
+    {waitUntil: ['domcontentloaded', 'networkidle0']}
   );
-  console.log((await page.content()).slice(0, 500));
 
-  await page.type('#lst-ib', 'aaaaa');
-  // avoid to timeout waitForNavigation() after click()
-  await Promise.all([
-    // avoid to
-    // 'Cannot find context with specified id undefined' for localStorage
-    page.waitForNavigation(),
-    page.click('[name=btnK]'),
-  ]);
+  response.pageTitle = await page.title();
+  console.log(response.pageTitle);
+  return response;
+};
 
-/* screenshot
-  await page.screenshot({path: '/tmp/screenshot.png'});
-  const aws = require('aws-sdk');
-  const s3 = new aws.S3({apiVersion: '2006-03-01'});
-  const fs = require('fs');
-  const screenshot = await new Promise((resolve, reject) => {
-    fs.readFile('/tmp/screenshot.png', (err, data) => {
-      if (err) return reject(err);
-      resolve(data);
+exports.getScreenshotFromURL = async (browser) => {
+  let screenshotoutput = '';
+  const page = await browser.newPage();
+
+  // Load the target web page.
+  await page.goto('https://wikipedia.org',
+    {waitUntil: ['domcontentloaded', 'networkidle0']}
+  );
+
+  let screenshotoptions = {};
+  let tmp = require('tmp');
+  let tmpobj = tmp.fileSync(
+    {keep: true,
+    mode: 0o600,
+    prefix: 'screenshot-',
+    postfix: '.png'});
+  screenshotoptions.path = tmpobj.name;
+
+  await page.screenshot(screenshotoptions)
+    .then((result) => {
+      screenshotoutput = screenshotoptions.path;
+    })
+    .catch((err) => {
+      screenshotoutput = 'Error: ' + err;
+      console.error(err);
     });
-  });
-  await s3.putObject({
-    Bucket: '<bucket name>',
-    Key: 'screenshot.png',
-    Body: screenshot,
-  }).promise();
-*/
 
-  // cookie and localStorage
-  await page.setCookie({name: 'name', value: 'cookieValue'});
-  console.log(await page.cookies());
-  console.log(await page.evaluate(() => {
-    localStorage.setItem('name', 'localStorageValue');
-    return localStorage.getItem('name');
-  }));
-  await page.close();
-  return 'done';
+  return screenshotoutput;
 };

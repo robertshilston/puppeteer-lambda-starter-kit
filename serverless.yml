@@ -17,6 +17,10 @@ functions:
     handler: index.handler
     environment:
       DEBUG: 0
+    events:
+      - http:
+          path: finished-page
+          method: get
 
 package:
   artifact: ./package.zip

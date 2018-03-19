@@ -19,7 +19,10 @@ $ git clone -o starter-kit https://github.com/sambaiz/puppeteer-lambda-starter-k
 Serverless Framework can manage settings with CloudFormation and deploy.
 
 ```
-$ serverless install --url https://github.com/sambaiz/puppeteer-lambda-starter-kit --name your_project_name
+$ git clone -o starter-kit https://github.com/sambaiz/puppeteer-lambda-starter-kit.git your_project_name
+$ cd your_project_name
+$ npm install
+$ serverless deploy
 ```
 
 ## Run on local
