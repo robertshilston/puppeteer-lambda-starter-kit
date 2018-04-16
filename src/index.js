@@ -68,30 +68,36 @@ exports.getFinishedPage = async (browser, pageurl) => {
     logLevel: 'none',
   });
 
-  console.log(response.pageTitle);
-  let s = lhr.reportCategories.map((c) => c.score).join(', ');
-  console.log('LH scores: ' + s);
-  response.lighthousescores = s;
+  let scorecard = lhr.reportCategories.map((c) => {
+    let r = {}; 
+    r[c.id] = c.score; 
+    return r
+  });
+  response.lighthousescores = scorecard;
 
   // Push to DynamoDB:
-  const params = {
-    TableName: process.env.DYNAMODB_TABLE,
-    Item: {
-      id: uuid.v1(),
-      url: pageurl,
-      createdAt: timestamp,
-      scores: s,
-    },
-  };
-  console.log(params);
+  if (process.env.DYNAMODB_TABLE) {
+    const params = {
+      TableName: process.env.DYNAMODB_TABLE,
+      Item: {
+        id: uuid.v1(),
+        url: pageurl,
+        createdAt: timestamp,
+        scores: scorecard,
+	fullreport: lhr,
+      },
+    };
 
-  dynamoDb.put(params, (error) => {
-    // handle potential errors
-    if (error) {
-      console.error(error);
-      response.dberror = error;
-    }
-  });
+    dynamoDb.put(params, (error) => {
+      // handle potential errors
+      if (error) {
+        console.error(error);
+        response.dberror = error;
+      }
+    });
+  } else {
+    console.warn('Not writing to DB as no table name specified');
+  }
 
   return response;
 };
