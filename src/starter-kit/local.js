@@ -9,7 +9,7 @@ const puppeteer = require('puppeteer');
         dumpio: !!config.DEBUG,
         // use chrome installed by puppeteer
     });
-    await index.getFinishedPage(browser)
+    await index.getFinishedPage(browser, process.env.URL)
     .then((result) => console.log(result))
     .catch((err) => console.error(err));
     await browser.close();
