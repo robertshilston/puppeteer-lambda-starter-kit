@@ -1,5 +1,4 @@
 const setup = require('./starter-kit/setup');
-// const puppeteer = require('puppeteer');
 const lighthouse = require('lighthouse');
 const url = require('url');
 
@@ -16,9 +15,23 @@ module.exports.handler = async (event, context, callback) => {
   };
 
   try {
-    let pageurl = 'https://wikipedia.org';
+    let pageurl = '';
+
+    // Allow the URL to be specified either via query string or a direct
+    // argument on the lambda invocation - that is, either:
+    // https://XX.execute-api.YY.amazonaws.com/ZZ?url=https://ft.com/
+    // or
+    // aws lambda invoke --invocation-type RequestResponse \
+    // --function-name puppeteer-lambda-starter-kit-dev-test-function \
+    // --region eu-west-1 --log-type Tail \
+    // --payload '{"url": "http://ft.com"}' out.txt
+
     if (event.queryStringParameters && event.queryStringParameters.url) {
       pageurl = event.queryStringParameters.url;
+    }
+
+    if (event.url) {
+      pageurl = event.url;
     }
 
     const result = await exports.getFinishedPage(browser, pageurl);
@@ -34,19 +47,15 @@ module.exports.handler = async (event, context, callback) => {
 
 exports.getFinishedPage = async (browser, pageurl) => {
   let response = {};
-  const page = await browser.newPage();
 
-  if (!pageurl) pageurl = 'https://wikipedia.org';
-
-  // Load the target web page.
-  await page.goto(pageurl,
-    {waitUntil: ['domcontentloaded', 'networkidle0']}
-  );
+  if (!pageurl) {
+    response.message = 'No URL supplied: you must specifiy the page to audit.';
+    console.log(response.message);
+    return response;
+  }
 
   let wsep = browser.wsEndpoint();
-  console.log('wsEndpoint: ' + wsep);
   let wsepport = url.parse(wsep).port;
-  console.log('Port: ' + wsepport);
 
   const lhr = await lighthouse(pageurl, {
     port: wsepport,
@@ -54,12 +63,10 @@ exports.getFinishedPage = async (browser, pageurl) => {
     logLevel: 'none',
   });
 
-  response.pageTitle = await page.title();
-  response.lighthouse = lhr;
-
   console.log(response.pageTitle);
   let s = lhr.reportCategories.map((c) => c.score).join(', ');
   console.log('LH scores: ' + s);
+  response.lighthousescores = s;
   return response;
 };
 
