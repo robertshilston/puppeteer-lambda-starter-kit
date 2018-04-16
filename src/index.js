@@ -1,6 +1,9 @@
 const setup = require('./starter-kit/setup');
 const lighthouse = require('lighthouse');
 const url = require('url');
+const uuid = require('uuid');
+const AWS = require('aws-sdk');
+const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
 module.exports.handler = async (event, context, callback) => {
   // For keeping the browser launch
@@ -57,6 +60,8 @@ exports.getFinishedPage = async (browser, pageurl) => {
   let wsep = browser.wsEndpoint();
   let wsepport = url.parse(wsep).port;
 
+  const timestamp = new Date().getTime();
+
   const lhr = await lighthouse(pageurl, {
     port: wsepport,
     output: 'json',
@@ -67,6 +72,27 @@ exports.getFinishedPage = async (browser, pageurl) => {
   let s = lhr.reportCategories.map((c) => c.score).join(', ');
   console.log('LH scores: ' + s);
   response.lighthousescores = s;
+
+  // Push to DynamoDB:
+  const params = {
+    TableName: process.env.DYNAMODB_TABLE,
+    Item: {
+      id: uuid.v1(),
+      url: pageurl,
+      createdAt: timestamp,
+      scores: s,
+    },
+  };
+  console.log(params);
+
+  dynamoDb.put(params, (error) => {
+    // handle potential errors
+    if (error) {
+      console.error(error);
+      response.dberror = error;
+    }
+  });
+
   return response;
 };
 
