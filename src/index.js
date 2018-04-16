@@ -1,4 +1,7 @@
 const setup = require('./starter-kit/setup');
+// const puppeteer = require('puppeteer');
+const lighthouse = require('lighthouse');
+const url = require('url');
 
 module.exports.handler = async (event, context, callback) => {
   // For keeping the browser launch
@@ -33,13 +36,30 @@ exports.getFinishedPage = async (browser, pageurl) => {
   let response = {};
   const page = await browser.newPage();
 
+  if (!pageurl) pageurl = 'https://wikipedia.org';
+
   // Load the target web page.
   await page.goto(pageurl,
     {waitUntil: ['domcontentloaded', 'networkidle0']}
   );
 
+  let wsep = browser.wsEndpoint();
+  console.log('wsEndpoint: ' + wsep);
+  let wsepport = url.parse(wsep).port;
+  console.log('Port: ' + wsepport);
+
+  const lhr = await lighthouse(pageurl, {
+    port: wsepport,
+    output: 'json',
+    logLevel: 'none',
+  });
+
   response.pageTitle = await page.title();
+  response.lighthouse = lhr;
+
   console.log(response.pageTitle);
+  let s = lhr.reportCategories.map((c) => c.score).join(', ');
+  console.log('LH scores: ' + s);
   return response;
 };
 
