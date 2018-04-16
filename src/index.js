@@ -69,9 +69,9 @@ exports.getFinishedPage = async (browser, pageurl) => {
   });
 
   let scorecard = lhr.reportCategories.map((c) => {
-    let r = {}; 
-    r[c.id] = c.score; 
-    return r
+    let r = {};
+    r[c.id] = c.score;
+    return r;
   });
   response.lighthousescores = scorecard;
 
@@ -84,7 +84,7 @@ exports.getFinishedPage = async (browser, pageurl) => {
         url: pageurl,
         createdAt: timestamp,
         scores: scorecard,
-	fullreport: lhr,
+        fullreport: lhr,
       },
     };
 
