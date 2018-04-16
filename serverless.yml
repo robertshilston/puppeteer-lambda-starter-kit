@@ -5,6 +5,7 @@ provider:
   runtime: nodejs6.10
   memorySize: 1536
   timeout: 180
+  region: eu-west-1
   # if needed (e.g. upload snapshot)
   # iamRoleStatements:
   #  -  Effect: "Allow"
