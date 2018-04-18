@@ -42,7 +42,7 @@ module.exports.handler = async (event, context, callback) => {
   if (requesturls.length > 1 || event.queryStringParameters) {
     const lambda = new AWS.Lambda();
 
-    requesturls.forEach( function(url) {
+    let LambdaPromises = requesturls.map( function(url) {
       let newpayload = {'url': url};
       let params = {
         FunctionName: context.functionName,
@@ -51,16 +51,26 @@ module.exports.handler = async (event, context, callback) => {
         Qualifier: context.functionVersion,
       };
       console.log('Invoking sub-lambda for ' + url);
-      lambda.invoke(params, context.done);
+
+      return lambda.invoke(params, context.done).promise();
     });
 
-    response.body = 'Forked ' + urls.length + ' process(es)';
+    try {
+      res = await Promise.all(LambdaPromises);
+    } catch (e) {
+      res = e;
+    }
+    console.log('Result of batch lambda requests is: ');
+    console.log(JSON.stringify(res));
+
+    response.body = 'Forked ' + requesturls.length + ' process(es)';
     callback(null, response);
   } else {
     // Just one URL to process:
-    console.log('Auditing ' + requesturls);
+    let thisurl = requesturls[0];
+    console.log('Auditing ' + thisurl);
 
-    const result = await exports.getFinishedPage(browser, requesturls);
+    const result = await exports.getFinishedPage(browser, thisurl);
     response.body = JSON.stringify(result);
     callback(null, response);
   }
