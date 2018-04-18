@@ -6,7 +6,7 @@ const AWS = require('aws-sdk');
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
 module.exports.handler = async (event, context, callback) => {
-  // For keeping the browser launch
+// For keeping the browser launch
   context.callbackWaitsForEmptyEventLoop = false;
   const browser = await setup.getBrowser();
 
@@ -78,28 +78,26 @@ exports.getFinishedPage = async (browser, pageurl) => {
     r[c.id] = c.score;
     return r;
   });
+  console.log(scorecard);
   response.lighthousescores = scorecard;
 
   // Push to DynamoDB:
   if (process.env.DYNAMODB_TABLE) {
-    const params = {
+    console.log('Attempting to store in DB');
+    let params = {
       TableName: process.env.DYNAMODB_TABLE,
       Item: {
         id: uuid.v1(),
         url: pageurl,
         createdAt: timestamp,
         scores: scorecard,
-        fullreport: lhr,
       },
     };
+    console.log(params);
+    let res = await dynamoDb.put(params).promise();
+    console.log('Res: ' + res);
 
-    dynamoDb.put(params, (error) => {
-      // handle potential errors
-      if (error) {
-        console.error(error);
-        response.dberror = error;
-      }
-    });
+    // params.Item['fullreport'] = lhr;
   } else {
     console.warn('Not writing to DB as no table name specified');
   }
@@ -107,32 +105,3 @@ exports.getFinishedPage = async (browser, pageurl) => {
   return response;
 };
 
-exports.getScreenshotFromURL = async (browser) => {
-  let screenshotoutput = '';
-  const page = await browser.newPage();
-
-  // Load the target web page.
-  await page.goto('https://wikipedia.org',
-    {waitUntil: ['domcontentloaded', 'networkidle0']}
-  );
-
-  let screenshotoptions = {};
-  let tmp = require('tmp');
-  let tmpobj = tmp.fileSync(
-    {keep: true,
-    mode: 0o600,
-    prefix: 'screenshot-',
-    postfix: '.png'});
-  screenshotoptions.path = tmpobj.name;
-
-  await page.screenshot(screenshotoptions)
-    .then((result) => {
-      screenshotoutput = screenshotoptions.path;
-    })
-    .catch((err) => {
-      screenshotoutput = 'Error: ' + err;
-      console.error(err);
-    });
-
-  return screenshotoutput;
-};
