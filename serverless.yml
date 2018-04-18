@@ -1,4 +1,4 @@
-service: puppeteer-lambda-starter-kit
+service: audit-with-lighthouse-v1
 
 provider:
   name: aws
@@ -29,18 +29,20 @@ provider:
 
 resources:
   Resources:
-    LighthouseResultsDynamoDbTable:
+    LighthouseResultsDynamoDbTableV2:
       Type: 'AWS::DynamoDB::Table'
       DeletionPolicy: Retain
       Properties:
         AttributeDefinitions:
-          -
-            AttributeName: id
+          - AttributeName: url
             AttributeType: S
+          - AttributeName: scantimestamp
+            AttributeType: N
         KeySchema:
-          -
-            AttributeName: id
+          - AttributeName: url
             KeyType: HASH
+          - AttributeName: scantimestamp
+            KeyType: RANGE
         ProvisionedThroughput:
           ReadCapacityUnits: 1
           WriteCapacityUnits: 1

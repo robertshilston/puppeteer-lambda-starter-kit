@@ -1,7 +1,6 @@
 const setup = require('./starter-kit/setup');
 const lighthouse = require('lighthouse');
 const url = require('url');
-const uuid = require('uuid');
 const AWS = require('aws-sdk');
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
@@ -17,35 +16,53 @@ module.exports.handler = async (event, context, callback) => {
     },
   };
 
-  try {
-    let pageurl = '';
+  // Allow the URL to be specified either via query string or a direct
+  // argument on the lambda invocation - that is, either:
+  // https://XX.execute-api.YY.amazonaws.com/ZZ?url=https://ft.com/
+  // or
+  // aws lambda invoke --invocation-type RequestResponse \
+  // --function-name puppeteer-lambda-starter-kit-dev-test-function \
+  // --region eu-west-1 --log-type Tail \
+  // --payload '{"url": "http://ft.com"}' out.txt
 
-    // Allow the URL to be specified either via query string or a direct
-    // argument on the lambda invocation - that is, either:
-    // https://XX.execute-api.YY.amazonaws.com/ZZ?url=https://ft.com/
-    // or
-    // aws lambda invoke --invocation-type RequestResponse \
-    // --function-name puppeteer-lambda-starter-kit-dev-test-function \
-    // --region eu-west-1 --log-type Tail \
-    // --payload '{"url": "http://ft.com"}' out.txt
+  let requesturls;
 
-    if (event.queryStringParameters && event.queryStringParameters.url) {
-      pageurl = event.queryStringParameters.url;
-    }
+  if (event.queryStringParameters && event.queryStringParameters.url) {
+    requesturls = event.queryStringParameters.url;
+  }
 
-    if (event.url) {
-      pageurl = event.url;
-    }
+  if (event.url) {
+    requesturls = event.url;
+  }
 
-    console.log('Auditing ' + pageurl);
+  // As execution might exceed the HTTP 30 sec timeout from API gateway
+  // or we might have a batch, then re-execute myself asynchronously.
+  if (!Array.isArray(requesturls)) requesturls = [requesturls];
 
-    const result = await exports.getFinishedPage(browser, pageurl);
+  if (requesturls.length > 1 || event.queryStringParameters) {
+    const lambda = new AWS.Lambda();
+
+    requesturls.forEach( function(url) {
+      let newpayload = {'url': url};
+      let params = {
+        FunctionName: context.functionName,
+        InvocationType: 'Event',
+        Payload: JSON.stringify(newpayload),
+        Qualifier: context.functionVersion,
+      };
+      console.log('Invoking sub-lambda for ' + url);
+      lambda.invoke(params, context.done);
+    });
+
+    response.body = 'Forked ' + urls.length + ' process(es)';
+    callback(null, response);
+  } else {
+    // Just one URL to process:
+    console.log('Auditing ' + requesturls);
+
+    const result = await exports.getFinishedPage(browser, requesturls);
     response.body = JSON.stringify(result);
     callback(null, response);
-  } catch (err) {
-    response.body = JSON.stringify(err);
-    response.statusCode = 500;
-    callback(err, response);
   }
 };
 
@@ -87,9 +104,8 @@ exports.getFinishedPage = async (browser, pageurl) => {
     let params = {
       TableName: process.env.DYNAMODB_TABLE,
       Item: {
-        id: uuid.v1(),
         url: pageurl,
-        createdAt: timestamp,
+        scantimestamp: timestamp,
         scores: scorecard,
       },
     };
