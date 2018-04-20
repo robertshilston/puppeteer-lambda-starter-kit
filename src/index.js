@@ -86,10 +86,12 @@ exports.getFinishedPage = async (browser, pageurl) => {
     return response;
   }
 
+  /* Chunk 1: Do Chrome Lighthouse report */
   let wsep = browser.wsEndpoint();
   let wsepport = url.parse(wsep).port;
 
-  const timestamp = new Date().getTime();
+  // Use timestamp in seconds rather than milliseconds, to aid subsequent re-use
+  const timestamp = new Date().getTime()/1000;
 
   const lhr = await lighthouse(pageurl, {
     port: wsepport,
@@ -106,8 +108,19 @@ exports.getFinishedPage = async (browser, pageurl) => {
     if (c.id=='best-practices') c.id='bestpractices';
     scorecard[c.id] = c.score;
   });
-
   response.lighthousescores = scorecard;
+
+
+  /* Chunk 2: Load the page and do our own additional bits */
+  // Load the target web page.
+  const page = await browser.newPage();
+  await page.goto(pageurl,
+    {waitUntil: ['domcontentloaded', 'networkidle0']}
+  );
+
+  response.pageTitle = await page.title();
+  scorecard['cookies'] = await page.cookies();
+  scorecard['pagetitle'] = response.pageTitle;
 
   // Push to s3:
   let s3 = new AWS.S3({apiVersion: '2006-03-01', region: 'eu-west-1'});
@@ -138,7 +151,7 @@ exports.getFinishedPage = async (browser, pageurl) => {
       Item: scorecard,
     };
     let res = await dynamoDb.put(params).promise();
-    console.log('Res: ' + res);
+    console.log('Res: ' + JSON.stringify(res));
 
     // params.Item['fullreport'] = lhr;
   } else {
