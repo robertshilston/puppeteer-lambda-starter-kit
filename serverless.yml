@@ -18,14 +18,14 @@ provider:
         - dynamodb:UpdateItem
         - dynamodb:DeleteItem
       Resource: "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE}"
-
-
- # if needed (e.g. upload snapshot)
-  # iamRoleStatements:
-  #  -  Effect: "Allow"
-  #     Action:
-  #       - "s3:PutObject"
-  #     Resource: "arn:aws:s3:::<bucket name>/*"  
+    - Effect: "Allow"
+      Action:
+        - lambda:InvokeFunction
+      Resource: "${self:custom.functionARN}"
+    - Effect: "Allow"
+      Action:
+        - "s3:PutObject"
+      Resource: "arn:aws:s3:::${self:custom.bucket}/*"  
 
 resources:
   Resources:
@@ -58,6 +58,14 @@ functions:
           path: finished-page
           method: get
 
+  list:
+    handler: list.list
+    events:
+      - http:
+          path: list
+          method: get
+          cors: true
+
 package:
   artifact: ./package.zip
   
@@ -65,6 +73,8 @@ plugins:
   - serverless-hooks-plugin
 
 custom:
+  functionARN: "arn:aws:lambda:eu-west-1:945374528520:function:audit-with-lighthouse-v1-dev-test-function"
   hooks:
     package:initialize:
       - npm run package
+  bucket: lighthouse-audit-scorecard
