@@ -2,5 +2,5 @@
 
 ## Decision
 
-To use serverless, as this has lower running cost and is the curent
+To use serverless, as this has lower running cost and is the current
 preferred FT strategy
