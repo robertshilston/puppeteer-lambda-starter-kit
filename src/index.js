@@ -54,7 +54,7 @@ module.exports.handler = async (event, context, callback) => {
 
       return lambda.invoke(params, context.done).promise();
     });
-
+    let res;
     try {
       res = await Promise.all(LambdaPromises);
     } catch (e) {
