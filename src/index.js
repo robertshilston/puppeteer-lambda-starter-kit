@@ -1,3 +1,5 @@
+'use strict';
+
 const setup = require('./starter-kit/setup');
 const lighthouse = require('lighthouse');
 const url = require('url');
