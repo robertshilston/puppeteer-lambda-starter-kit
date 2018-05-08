@@ -6,7 +6,7 @@ const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
 module.exports.handler = async (event, context, callback) => {
 // For keeping the browser launch
-  context.callbackWaitsForEmptyEventLoop = false;
+//  context.callbackWaitsForEmptyEventLoop = false;
   const browser = await setup.getBrowser();
 
   let response = {
